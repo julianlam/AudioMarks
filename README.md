@@ -4,6 +4,10 @@ A side-loadable Android app (min/target SDK 36 — Android 16) that watches
 whatever music player is running (Gramophone, VLC, …) and lets you attach
 timestamped text annotations to the currently playing track.
 
+> [!IMPORTANT]
+> This app was vibe-coded by bartowski/ukisai_Swift-1.5-Qwen3.8-27b-GGUF.
+> Feel free to fork and update as necessary — use this app at your own peril 💀
+
 ![AudioMarks screenshot](screenshot.png)
 
 *Now Playing panel (with 10 s rewind and play/pause), the annotations
