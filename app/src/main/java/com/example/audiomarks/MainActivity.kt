@@ -269,11 +269,8 @@ private fun EditAnnotationDialog(
 			)
 		},
 		confirmButton = {
-			TextButton(
-				onClick = { onSave(text) },
-				enabled = text.isNotBlank(),
-			) {
-				Text("Save")
+			TextButton(onClick = { onSave(text) }) {
+				Text(if (text.isBlank()) "Delete" else "Save")
 			}
 		},
 		dismissButton = {

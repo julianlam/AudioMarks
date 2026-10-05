@@ -2,6 +2,7 @@ package com.example.audiomarks
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.CoroutineScope
@@ -189,12 +190,15 @@ class AnnotationStore(context: Context) {
 	fun updateAnnotationText(trackKey: String, t: Double, created: Long, text: String): Boolean {
 		val tree = treeUri ?: return false
 		val root = DocumentFile.fromTreeUri(appContext, tree) ?: return false
-		val doc = root.findFile("${trackKey}.json") ?: return false
+		val doc = root.findFile("${trackKey}.json") ?: run {
+			Log.w(TAG, "update: file not found for key $trackKey")
+			return false
+		}
 		var found = false
 		try {
 			val content = resolver.openInputStream(doc.uri)
 				?.use { it.readBytes() }
-				?.toString() ?: return false
+				?.decodeToString() ?: return false
 			val obj = JSONObject(content)
 			val arr = obj.getJSONArray("annotations")
 			for (i in 0 until arr.length()) {
@@ -206,17 +210,70 @@ class AnnotationStore(context: Context) {
 				}
 			}
 			if (found) {
-				resolver.openOutputStream(doc.uri, "wt")
-					?.use { it.write(obj.toString(2).toByteArray()) }
+				// Same "w" mode as addAnnotation (truncates); "wt" is not
+				// guaranteed to be honored by every DocumentProvider
+				val out = resolver.openOutputStream(doc.uri) ?: run {
+					Log.w(TAG, "update: openOutputStream returned null")
+					return false
+				}
+				out.use { it.write(obj.toString(2).toByteArray()) }
 				// Force re-read on next poll
 				known.remove(doc.uri.toString())
+				Log.i(TAG, "update: wrote ${obj.length()} bytes for key $trackKey")
+			} else {
+				Log.w(TAG, "update: no annotation matched t=$t created=$created")
 			}
-		} catch (_: Exception) {
+		} catch (e: Exception) {
+			Log.w(TAG, "update failed", e)
+		}
+		return found
+	}
+
+	/** Delete the annotation at (t, created) from [trackKey]'s file. */
+	fun deleteAnnotation(trackKey: String, t: Double, created: Long): Boolean {
+		val tree = treeUri ?: return false
+		val root = DocumentFile.fromTreeUri(appContext, tree) ?: return false
+		val doc = root.findFile("${trackKey}.json") ?: run {
+			Log.w(TAG, "delete: file not found for key $trackKey")
+			return false
+		}
+		var found = false
+		try {
+			val content = resolver.openInputStream(doc.uri)
+				?.use { it.readBytes() }
+				?.decodeToString() ?: return false
+			val obj = JSONObject(content)
+			val arr = obj.getJSONArray("annotations")
+			val kept = JSONArray()
+			for (i in 0 until arr.length()) {
+				val a = arr.getJSONObject(i)
+				if (a.optDouble("t", -1.0) == t && a.optLong("created", -1L) == created) {
+					found = true
+				} else {
+					kept.put(a)
+				}
+			}
+			if (found) {
+				obj.put("annotations", kept)
+				val out = resolver.openOutputStream(doc.uri) ?: run {
+					Log.w(TAG, "delete: openOutputStream returned null")
+					return false
+				}
+				out.use { it.write(obj.toString(2).toByteArray()) }
+				// Force re-read on next poll
+				known.remove(doc.uri.toString())
+				Log.i(TAG, "delete: wrote ${obj.length()} bytes, ${kept.length()} remaining")
+			} else {
+				Log.w(TAG, "delete: no annotation matched t=$t created=$created")
+			}
+		} catch (e: Exception) {
+			Log.w(TAG, "delete failed", e)
 		}
 		return found
 	}
 
 	companion object {
 		const val POLL_MS = 1000L
+		private const val TAG = "AnnotationStore"
 	}
 }

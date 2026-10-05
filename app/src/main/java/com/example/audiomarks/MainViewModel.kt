@@ -69,8 +69,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
 	fun updateAnnotation(a: Annotation, text: String) {
 		val track = _currentTrack.value ?: return
-		// known.remove() inside the store forces a re-read on the next poll
-		store.updateAnnotationText(track.key, a.t, a.created, text.trim())
+		val trimmed = text.trim()
+		// Empty text on save = delete; known.remove() forces a re-read on next poll
+		if (trimmed.isEmpty()) {
+			store.deleteAnnotation(track.key, a.t, a.created)
+		} else {
+			store.updateAnnotationText(track.key, a.t, a.created, trimmed)
+		}
 	}
 
 	override fun onCleared() {
