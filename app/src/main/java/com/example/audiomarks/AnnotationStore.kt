@@ -185,6 +185,37 @@ class AnnotationStore(context: Context) {
 		}
 	}
 
+	/** Update the text of the annotation at (t, created) in [trackKey]'s file. */
+	fun updateAnnotationText(trackKey: String, t: Double, created: Long, text: String): Boolean {
+		val tree = treeUri ?: return false
+		val root = DocumentFile.fromTreeUri(appContext, tree) ?: return false
+		val doc = root.findFile("${trackKey}.json") ?: return false
+		var found = false
+		try {
+			val content = resolver.openInputStream(doc.uri)
+				?.use { it.readBytes() }
+				?.toString() ?: return false
+			val obj = JSONObject(content)
+			val arr = obj.getJSONArray("annotations")
+			for (i in 0 until arr.length()) {
+				val a = arr.getJSONObject(i)
+				if (a.optDouble("t", -1.0) == t && a.optLong("created", -1L) == created) {
+					a.put("text", text)
+					found = true
+					break
+				}
+			}
+			if (found) {
+				resolver.openOutputStream(doc.uri, "wt")
+					?.use { it.write(obj.toString(2).toByteArray()) }
+				// Force re-read on next poll
+				known.remove(doc.uri.toString())
+			}
+		} catch (_: Exception) {
+		}
+		return found
+	}
+
 	companion object {
 		const val POLL_MS = 1000L
 	}

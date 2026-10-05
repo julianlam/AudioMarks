@@ -49,6 +49,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 		playback.seekBy(-10_000)
 	}
 
+	fun togglePlayPause() {
+		val np = playback.nowPlaying.value ?: return
+		if (np.isPlaying) playback.pause() else playback.play()
+	}
+
+	fun seekTo(ms: Long) {
+		playback.seekTo(ms)
+	}
+
 	fun addAnnotation(text: String) {
 		val np = playback.nowPlaying.value ?: return
 		val track = _currentTrack.value ?: return
@@ -56,6 +65,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 		viewModelScope.launch(Dispatchers.IO) {
 			store.addAnnotation(track, t, text.trim())
 		}
+	}
+
+	fun updateAnnotation(a: Annotation, text: String) {
+		val track = _currentTrack.value ?: return
+		// known.remove() inside the store forces a re-read on the next poll
+		store.updateAnnotationText(track.key, a.t, a.created, text.trim())
 	}
 
 	override fun onCleared() {

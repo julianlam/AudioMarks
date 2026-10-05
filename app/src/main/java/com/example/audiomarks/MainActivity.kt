@@ -13,6 +13,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,10 +32,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.outlined.AddComment
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,6 +47,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -125,6 +131,7 @@ fun AudioMarksScreen(
 	val tracks by vm.store.tracks.collectAsState()
 	val folderName by vm.store.folderName.collectAsState()
 	val hasFolder = vm.store.hasFolder()
+	var editing by remember { mutableStateOf<Annotation?>(null) }
 
 	Column(
 		modifier = modifier
@@ -132,7 +139,12 @@ fun AudioMarksScreen(
 			.padding(16.dp),
 		verticalArrangement = Arrangement.spacedBy(12.dp),
 	) {
-		NowPlayingCard(nowPlaying, track, onSeekBack10 = { vm.seekBack10s() })
+		NowPlayingCard(
+			nowPlaying,
+			track,
+			onSeekBack10 = { vm.seekBack10s() },
+			onTogglePlayPause = { vm.togglePlayPause() },
+		)
 
 		if (!listenerGranted) {
 			Surface(
@@ -212,12 +224,64 @@ fun AudioMarksScreen(
 			}
 		}
 
-		AnnotationList(nowPlaying, track, tracks, Modifier.weight(1f))
+		AnnotationList(
+			nowPlaying,
+			track,
+			tracks,
+			modifier = Modifier.weight(1f),
+			onAnnotationClick = { a -> vm.seekTo((a.t * 1000).toLong()) },
+			onAnnotationLongClick = { a -> editing = a },
+		)
 
 		if (hasFolder && track != null) {
 			AddAnnotationBar(vm)
 		}
 	}
+
+	editing?.let { a ->
+		EditAnnotationDialog(
+			a = a,
+			onDismiss = { editing = null },
+			onSave = { text ->
+				vm.updateAnnotation(a, text)
+				editing = null
+			},
+		)
+	}
+}
+
+@Composable
+private fun EditAnnotationDialog(
+	a: Annotation,
+	onDismiss: () -> Unit,
+	onSave: (String) -> Unit,
+) {
+	var text by remember { mutableStateOf(a.text) }
+	AlertDialog(
+		onDismissRequest = onDismiss,
+		title = { Text("Edit annotation") },
+		text = {
+			OutlinedTextField(
+				value = text,
+				onValueChange = { text = it },
+				modifier = Modifier.fillMaxWidth(),
+				minLines = 2,
+			)
+		},
+		confirmButton = {
+			TextButton(
+				onClick = { onSave(text) },
+				enabled = text.isNotBlank(),
+			) {
+				Text("Save")
+			}
+		},
+		dismissButton = {
+			TextButton(onClick = onDismiss) {
+				Text("Cancel")
+			}
+		},
+	)
 }
 
 @Composable
@@ -225,6 +289,7 @@ private fun NowPlayingCard(
 	np: NowPlaying?,
 	track: TrackInfo?,
 	onSeekBack10: () -> Unit,
+	onTogglePlayPause: () -> Unit,
 ) {
 	Surface(
 		shape = RoundedCornerShape(16.dp),
@@ -310,6 +375,20 @@ private fun NowPlayingCard(
 							Spacer(Modifier.width(4.dp))
 							Text("10s", style = MaterialTheme.typography.labelLarge)
 						}
+						Spacer(Modifier.width(8.dp))
+						FilledTonalButton(
+							onClick = onTogglePlayPause,
+							contentPadding = androidx.compose.foundation.layout.PaddingValues(
+								horizontal = 12.dp,
+								vertical = 4.dp,
+							),
+						) {
+							Icon(
+								if (np.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+								contentDescription = if (np.isPlaying) "Pause" else "Play",
+								modifier = Modifier.size(18.dp),
+							)
+						}
 					}
 					track?.let {
 						Spacer(Modifier.height(4.dp))
@@ -340,6 +419,8 @@ private fun AnnotationList(
 	track: TrackInfo?,
 	tracks: Map<String, TrackAnnotations>,
 	modifier: Modifier = Modifier,
+	onAnnotationClick: (Annotation) -> Unit = {},
+	onAnnotationLongClick: (Annotation) -> Unit = {},
 ) {
 	val annotations = track?.let { tracks[it.key]?.annotations } ?: emptyList()
 	val listState = rememberLazyListState()
@@ -379,7 +460,12 @@ private fun AnnotationList(
 					val active = np != null &&
 						positionMs >= a.t * 1000.0 &&
 						positionMs < a.t * 1000.0 + HIGHLIGHT_MS
-					AnnotationBubble(a, active)
+					AnnotationBubble(
+						a,
+						active,
+						onClick = { onAnnotationClick(a) },
+						onLongClick = { onAnnotationLongClick(a) },
+					)
 				}
 			}
 		}
@@ -387,7 +473,12 @@ private fun AnnotationList(
 }
 
 @Composable
-private fun AnnotationBubble(a: Annotation, active: Boolean) {
+private fun AnnotationBubble(
+	a: Annotation,
+	active: Boolean,
+	onClick: () -> Unit,
+	onLongClick: () -> Unit,
+) {
 	val bg = if (active) {
 		MaterialTheme.colorScheme.primaryContainer
 	} else {
@@ -396,7 +487,9 @@ private fun AnnotationBubble(a: Annotation, active: Boolean) {
 	Surface(
 		color = bg,
 		shape = RoundedCornerShape(14.dp),
-		modifier = Modifier.fillMaxWidth(),
+		modifier = Modifier
+			.fillMaxWidth()
+			.combinedClickable(onClick = onClick, onLongClick = onLongClick),
 	) {
 		Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
 			Text(

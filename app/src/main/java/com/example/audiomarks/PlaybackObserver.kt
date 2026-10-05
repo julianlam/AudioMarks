@@ -164,6 +164,33 @@ class PlaybackObserver(context: Context) {
 		}
 	}
 
+	/** Seek the watched session to an absolute position. */
+	fun seekTo(positionMs: Long) {
+		val c = watched ?: return
+		try {
+			c.transportControls.seekTo(positionMs.coerceAtLeast(0L))
+		} catch (_: Exception) {
+		}
+	}
+
+	fun play() {
+		watched?.let { c ->
+			try {
+				c.transportControls.play()
+			} catch (_: Exception) {
+			}
+		}
+	}
+
+	fun pause() {
+		watched?.let { c ->
+			try {
+				c.transportControls.pause()
+			} catch (_: Exception) {
+			}
+		}
+	}
+
 	private fun refresh() {
 		val c = watched ?: run {
 			_nowPlaying.value = null
