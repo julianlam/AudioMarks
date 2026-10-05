@@ -6,6 +6,10 @@ app/build/
 # Local machine config (SDK path)
 local.properties
 
+# In-project toolchain (JDK, Android SDK, Gradle, dependency cache)
+# — kept inside the project so it survives container resets
+.tools/
+
 # Build outputs
 *.apk
 *.ap_

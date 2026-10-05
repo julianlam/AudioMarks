@@ -58,14 +58,27 @@ timestamped text annotations to the currently playing track.
 
 ## Building
 
-Requires JDK 17 and an Android SDK with platform 36:
+Requires JDK 17 and an Android SDK with platform 36. A complete
+toolchain is kept in `.tools/` (gitignored) so the project is
+self-contained across container resets:
+
+```
+.tools/jdk            JDK 17
+.tools/android-sdk    Android SDK (platform 36, build-tools, platform-tools)
+.tools/gradle         Gradle 8.14.3
+.tools/gradle-home    Gradle user home (dependency cache, wrapper dists)
+```
 
 ```sh
-export JAVA_HOME=/path/to/jdk17
-export ANDROID_HOME=/path/to/android-sdk   # or set sdk.dir in local.properties
-gradle assembleDebug
+cd /projects/audio-annotations
+export JAVA_HOME=$PWD/.tools/jdk
+export ANDROID_HOME=$PWD/.tools/android-sdk
+export GRADLE_USER_HOME=$PWD/.tools/gradle-home
+.tools/gradle/bin/gradle assembleDebug
 # -> app/build/outputs/apk/debug/app-debug.apk
 ```
+
+(`sdk.dir` in `local.properties` already points at `.tools/android-sdk`.)
 
 The debug APK is signed with the local debug keystore and is directly
 installable (side-loadable).
