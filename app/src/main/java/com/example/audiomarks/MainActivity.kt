@@ -23,9 +23,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -45,6 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,6 +66,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -133,16 +138,25 @@ fun AudioMarksScreen(
 	val folderName by vm.store.folderName.collectAsState()
 	val hasFolder = vm.store.hasFolder()
 	var editing by remember { mutableStateOf<Annotation?>(null) }
+	// No bottom padding while the keyboard is up — it would show as a gap above the IME
+	val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
 
 	Column(
 		modifier = modifier
+			.imePadding()
 			.fillMaxSize()
-			.padding(16.dp),
+			.padding(
+				start = 16.dp,
+				top = 16.dp,
+				end = 16.dp,
+				bottom = if (imeVisible) 0.dp else 16.dp,
+			),
 		verticalArrangement = Arrangement.spacedBy(12.dp),
 	) {
 		NowPlayingCard(
 			nowPlaying,
 			track,
+			onSeek = { vm.seekTo(it) },
 			onSeekBack10 = { vm.seekBack10s() },
 			onTogglePlayPause = { vm.togglePlayPause() },
 		)
@@ -286,6 +300,7 @@ private fun EditAnnotationDialog(
 private fun NowPlayingCard(
 	np: NowPlaying?,
 	track: TrackInfo?,
+	onSeek: (Long) -> Unit,
 	onSeekBack10: () -> Unit,
 	onTogglePlayPause: () -> Unit,
 ) {
@@ -350,14 +365,9 @@ private fun NowPlayingCard(
 						overflow = TextOverflow.Ellipsis,
 					)
 					Spacer(Modifier.height(4.dp))
+					SeekRow(np, onSeek)
+					Spacer(Modifier.height(4.dp))
 					Row(verticalAlignment = Alignment.CenterVertically) {
-						Text(
-							"${formatTime(np.positionMs)} / ${formatTime(np.durationMs)}" +
-								if (np.isPlaying) "  ▶" else "  ❚❚",
-							style = MaterialTheme.typography.bodyMedium,
-							fontFamily = FontFamily.Monospace,
-						)
-						Spacer(Modifier.width(8.dp))
 						FilledTonalButton(
 							onClick = onSeekBack10,
 							contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -408,6 +418,38 @@ private fun NowPlayingCard(
 				}
 			}
 		}
+	}
+}
+
+@Composable
+private fun SeekRow(np: NowPlaying, onSeek: (Long) -> Unit) {
+	val duration = np.durationMs.coerceAtLeast(1L)
+	// While dragging, the slider shows the finger position; on release we seek and
+	// hand control back to the (polled) playback position
+	var scrubPos by remember(np.mediaId) { mutableStateOf<Float?>(null) }
+	Row(verticalAlignment = Alignment.CenterVertically) {
+		Text(
+			formatTime(np.positionMs),
+			style = MaterialTheme.typography.bodyMedium,
+			fontFamily = FontFamily.Monospace,
+		)
+		Spacer(Modifier.width(8.dp))
+		Slider(
+			value = scrubPos ?: (np.positionMs.toFloat() / duration).coerceIn(0f, 1f),
+			onValueChange = { scrubPos = it },
+			onValueChangeFinished = {
+				val v = scrubPos ?: return@Slider
+				onSeek((v * duration).toLong())
+				scrubPos = null
+			},
+			modifier = Modifier.weight(1f),
+		)
+		Spacer(Modifier.width(8.dp))
+		Text(
+			formatTime(np.durationMs),
+			style = MaterialTheme.typography.bodyMedium,
+			fontFamily = FontFamily.Monospace,
+		)
 	}
 }
 
