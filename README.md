@@ -1,4 +1,4 @@
-# AudioMarks
+![AudioMarks Header](header.jpg)
 
 A side-loadable Android app (min/target SDK 36 — Android 16) that watches
 whatever music player is running (Gramophone, VLC, …) and lets you attach
