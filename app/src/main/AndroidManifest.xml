@@ -4,6 +4,13 @@
 	<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
+	<!-- See music player apps, so the current player can be launched from the now-playing card -->
+	<queries>
+		<intent>
+			<action android:name="android.intent.action.MUSIC_PLAYER" />
+		</intent>
+	</queries>
+
 	<application
 		android:allowBackup="true"
 		android:icon="@mipmap/ic_launcher"

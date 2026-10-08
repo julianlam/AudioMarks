@@ -154,6 +154,9 @@ class PlaybackObserver(context: Context) {
 		watched = null
 	}
 
+	/** The controller for the session we are currently watching, if any. */
+	fun watchedController(): MediaController? = watched
+
 	/** Seek the watched session by [deltaMs] (clamped at 0). */
 	fun seekBy(deltaMs: Long) {
 		val c = watched ?: return

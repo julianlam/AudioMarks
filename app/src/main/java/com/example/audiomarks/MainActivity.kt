@@ -116,6 +116,7 @@ class MainActivity : ComponentActivity() {
 						onOpenListenerSettings = {
 							context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
 						},
+						onOpenPlayer = { openCurrentPlayer(context, vm.playback) },
 						modifier = Modifier.padding(padding),
 					)
 				}
@@ -130,6 +131,7 @@ fun AudioMarksScreen(
 	onPickFolder: () -> Unit,
 	listenerGranted: Boolean,
 	onOpenListenerSettings: () -> Unit,
+	onOpenPlayer: () -> Unit,
 	modifier: Modifier = Modifier,
 ) {
 	val nowPlaying by vm.playback.nowPlaying.collectAsState()
@@ -159,6 +161,7 @@ fun AudioMarksScreen(
 			onSeek = { vm.seekTo(it) },
 			onSeekBack10 = { vm.seekBack10s() },
 			onTogglePlayPause = { vm.togglePlayPause() },
+			onCardClick = onOpenPlayer,
 		)
 
 		if (!listenerGranted) {
@@ -303,11 +306,16 @@ private fun NowPlayingCard(
 	onSeek: (Long) -> Unit,
 	onSeekBack10: () -> Unit,
 	onTogglePlayPause: () -> Unit,
+	onCardClick: () -> Unit,
 ) {
 	Surface(
 		shape = RoundedCornerShape(16.dp),
 		color = MaterialTheme.colorScheme.surfaceVariant,
-		modifier = Modifier.fillMaxWidth(),
+		// Tapping the card opens the playing app; child buttons/slider consume
+		// their own touches, so they take precedence over this click
+		modifier = Modifier
+			.fillMaxWidth()
+			.then(if (np != null) Modifier.clickable(onClickLabel = "Open player", onClick = onCardClick) else Modifier),
 	) {
 		Row(
 			modifier = Modifier
@@ -598,6 +606,28 @@ fun formatTime(ms: Long): String {
 }
 
 private const val HIGHLIGHT_MS = 10_000L
+
+private fun openCurrentPlayer(context: Context, playback: PlaybackObserver) {
+	val c = playback.watchedController() ?: return
+	// Direct launch: we are in the foreground, so this is allowed. (Requires
+	// the <queries> element in the manifest for package visibility.)
+	try {
+		val launch = context.packageManager.getLaunchIntentForPackage(c.packageName)
+		if (launch != null) {
+			context.startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+			return
+		}
+	} catch (e: Exception) {
+		// fall through to the session-PendingIntent path
+	}
+	// Fallback: the player's own session PendingIntent. May be blocked by
+	// background-activity-launch rules if the player grants no BAL exemption.
+	try {
+		c.sessionActivity?.send()
+	} catch (e: Exception) {
+		// best-effort: a failed lookup must not crash the app on a card tap
+	}
+}
 
 private fun notificationAccessGranted(context: Context): Boolean {
 	val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
