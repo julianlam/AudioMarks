@@ -16,7 +16,21 @@ android {
 		versionName = "1.0"
 	}
 
+	// Debug keystore kept in .tools/ so it survives container resets
+	// (~/.android, where Gradle would auto-generate one, is wiped)
+	signingConfigs {
+		create("projectDebug") {
+			storeFile = rootProject.file(".tools/debug.keystore")
+			storePassword = "android"
+			keyAlias = "androiddebugkey"
+			keyPassword = "android"
+		}
+	}
+
 	buildTypes {
+		debug {
+			signingConfig = signingConfigs.getByName("projectDebug")
+		}
 		release {
 			isMinifyEnabled = false
 		}
