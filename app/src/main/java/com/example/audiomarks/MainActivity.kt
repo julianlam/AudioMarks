@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -35,6 +36,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
@@ -64,6 +66,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -159,7 +162,8 @@ fun AudioMarksScreen(
 			nowPlaying,
 			track,
 			onSeek = { vm.seekTo(it) },
-			onSeekBack10 = { vm.seekBack10s() },
+			onSeekBack = { vm.seekBack(it) },
+			onSeekToStart = { vm.seekTo(0) },
 			onTogglePlayPause = { vm.togglePlayPause() },
 			onCardClick = onOpenPlayer,
 		)
@@ -304,7 +308,8 @@ private fun NowPlayingCard(
 	np: NowPlaying?,
 	track: TrackInfo?,
 	onSeek: (Long) -> Unit,
-	onSeekBack10: () -> Unit,
+	onSeekBack: (Long) -> Unit,
+	onSeekToStart: () -> Unit,
 	onTogglePlayPause: () -> Unit,
 	onCardClick: () -> Unit,
 ) {
@@ -373,38 +378,16 @@ private fun NowPlayingCard(
 						overflow = TextOverflow.Ellipsis,
 					)
 					Spacer(Modifier.height(4.dp))
-					SeekRow(np, onSeek)
+					SeekRow(np, onSeek, onTogglePlayPause)
 					Spacer(Modifier.height(4.dp))
 					Row(verticalAlignment = Alignment.CenterVertically) {
-						FilledTonalButton(
-							onClick = onSeekBack10,
-							contentPadding = androidx.compose.foundation.layout.PaddingValues(
-								horizontal = 12.dp,
-								vertical = 4.dp,
-							),
-						) {
-							Icon(
-								Icons.Filled.Replay10,
-								contentDescription = "Back 10 seconds",
-								modifier = Modifier.size(18.dp),
-							)
-							Spacer(Modifier.width(4.dp))
-							Text("10s", style = MaterialTheme.typography.labelLarge)
-						}
+						SeekBackButton(Icons.Filled.Replay10, "3s") { onSeekBack(3_000) }
 						Spacer(Modifier.width(8.dp))
-						FilledTonalButton(
-							onClick = onTogglePlayPause,
-							contentPadding = androidx.compose.foundation.layout.PaddingValues(
-								horizontal = 12.dp,
-								vertical = 4.dp,
-							),
-						) {
-							Icon(
-								if (np.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-								contentDescription = if (np.isPlaying) "Pause" else "Play",
-								modifier = Modifier.size(18.dp),
-							)
-						}
+						SeekBackButton(Icons.Filled.Replay10, "10s") { onSeekBack(10_000) }
+						Spacer(Modifier.width(8.dp))
+						SeekBackButton(Icons.Filled.Replay10, "30s") { onSeekBack(30_000) }
+						Spacer(Modifier.width(8.dp))
+						SeekBackButton(Icons.Filled.FastRewind, "Start") { onSeekToStart() }
 					}
 					track?.let {
 						Spacer(Modifier.height(4.dp))
@@ -430,7 +413,11 @@ private fun NowPlayingCard(
 }
 
 @Composable
-private fun SeekRow(np: NowPlaying, onSeek: (Long) -> Unit) {
+private fun SeekRow(
+	np: NowPlaying,
+	onSeek: (Long) -> Unit,
+	onTogglePlayPause: () -> Unit,
+) {
 	val duration = np.durationMs.coerceAtLeast(1L)
 	// While dragging, the slider shows the finger position; on release we seek and
 	// hand control back to the (polled) playback position
@@ -458,6 +445,37 @@ private fun SeekRow(np: NowPlaying, onSeek: (Long) -> Unit) {
 			style = MaterialTheme.typography.bodyMedium,
 			fontFamily = FontFamily.Monospace,
 		)
+		Spacer(Modifier.width(8.dp))
+		FilledTonalButton(
+			onClick = onTogglePlayPause,
+			contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+		) {
+			Icon(
+				if (np.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+				contentDescription = if (np.isPlaying) "Pause" else "Play",
+				modifier = Modifier.size(18.dp),
+			)
+		}
+	}
+}
+
+@Composable
+private fun SeekBackButton(
+	icon: ImageVector,
+	label: String,
+	onClick: () -> Unit,
+) {
+	FilledTonalButton(
+		onClick = onClick,
+		contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+	) {
+		Icon(
+			icon,
+			contentDescription = label,
+			modifier = Modifier.size(18.dp),
+		)
+		Spacer(Modifier.width(4.dp))
+		Text(label, style = MaterialTheme.typography.labelLarge)
 	}
 }
 

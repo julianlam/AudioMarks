@@ -45,8 +45,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 		}
 	}
 
-	fun seekBack10s() {
-		playback.seekBy(-10_000)
+	fun seekBack(ms: Long) {
+		playback.seekBy(-ms)
 	}
 
 	fun togglePlayPause() {
