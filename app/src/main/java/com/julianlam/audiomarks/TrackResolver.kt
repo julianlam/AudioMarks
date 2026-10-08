@@ -1,4 +1,4 @@
-package com.example.audiomarks
+package com.julianlam.audiomarks
 
 import android.content.Context
 import android.net.Uri

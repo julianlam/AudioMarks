@@ -13,11 +13,11 @@ val localProps = Properties().apply {
 val releaseStorePassword = localProps.getProperty("RELEASE_STORE_PASSWORD", "")
 
 android {
-	namespace = "com.example.audiomarks"
+	namespace = "com.julianlam.audiomarks"
 	compileSdk = 36
 
 	defaultConfig {
-		applicationId = "com.example.audiomarks"
+		applicationId = "com.julianlam.audiomarks"
 		minSdk = 36
 		targetSdk = 36
 		versionCode = 2

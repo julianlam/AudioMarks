@@ -1,4 +1,4 @@
-package com.example.audiomarks
+package com.julianlam.audiomarks
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
