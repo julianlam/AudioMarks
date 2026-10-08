@@ -1,8 +1,16 @@
+import java.util.Properties
+
 plugins {
 	id("com.android.application")
 	id("org.jetbrains.kotlin.android")
 	id("org.jetbrains.kotlin.plugin.compose")
 }
+
+// Release keystore password lives in local.properties (gitignored)
+val localProps = Properties().apply {
+	rootProject.file("local.properties").inputStream().use { load(it) }
+}
+val releaseStorePassword = localProps.getProperty("RELEASE_STORE_PASSWORD", "")
 
 android {
 	namespace = "com.example.audiomarks"
@@ -12,8 +20,8 @@ android {
 		applicationId = "com.example.audiomarks"
 		minSdk = 36
 		targetSdk = 36
-		versionCode = 1
-		versionName = "1.0"
+		versionCode = 2
+		versionName = "1.1.0"
 	}
 
 	// Debug keystore kept in .tools/ so it survives container resets
@@ -25,6 +33,12 @@ android {
 			keyAlias = "androiddebugkey"
 			keyPassword = "android"
 		}
+		create("release") {
+			storeFile = rootProject.file(".tools/release.keystore")
+			storePassword = releaseStorePassword
+			keyAlias = "audiomarks"
+			keyPassword = releaseStorePassword
+		}
 	}
 
 	buildTypes {
@@ -33,6 +47,7 @@ android {
 		}
 		release {
 			isMinifyEnabled = false
+			signingConfig = signingConfigs.getByName("release")
 		}
 	}
 	compileOptions {
